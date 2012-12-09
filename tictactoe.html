@@ -1,0 +1,278 @@
+<!DOCTYPE HTML>
+
+<html>
+<head>
+	<title>Tic-Tac-Toe</title>
+	<style type="text/css">
+		table {
+			border-collapse: collapse;
+			border: 2px solid #000;
+			float: left;
+			text-align: center;
+		}
+	
+		td {
+			border: 1px solid #000;
+			margin: 0;
+			padding: 0;
+			height: 100px;
+			width: 100px;
+			font-size: 2em;
+			line-height: 50px;
+			cursor: pointer;
+		}
+
+		span {
+			font-weight: bold;
+		}
+	
+		.win {
+			background: #333 !important;
+			color: #ddd;
+		}
+	</style>
+
+	<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+
+	<script type="text/javascript">
+	$(document).ready(function(){
+
+			// global
+		var board;
+		var player;
+		var winState;
+		var moves;
+		var cid;
+		var x;
+		var y;
+
+			// keep track of score
+		var xwins = 0;
+		var owins = 0;
+		var draws = 0;
+
+			// validation and ai
+		var lines = Array(
+				'00,01,02', '10,11,12', '20,21,22', // horizontal
+				'00,10,20', '01,11,21', '02,12,22', // vertical
+				'00,11,22', '02,11,20'				// diagonal
+			);
+		var line;
+		var checksum;
+
+			// AI vaiables
+		var aiList;
+		var aix;
+		var aio;
+		var aiSetX;
+		var aiSetY;
+		var aiTempValue;
+
+		$('#xwins').text(xwins);
+		$('#owins').text(owins);
+		$('#draws').text(draws);
+
+		function init() {
+			console.log('new game');
+			board = [];
+			player = true;
+			winState = false;
+			moves = 0;
+
+			for (var x = 0; x < 3; x++) {
+				board[x] = [];
+				for (var y = 0; y < 3; y++) {
+					board[x][y] = '';
+					$('#c' + x + y).text('');
+					$('#c' + x + y).css({'background':'rgba(255,230,0,0)'});
+				}
+			}
+			$('td').removeClass('win');
+		}
+
+		init();
+
+		function move( x, y ) {
+
+			moves++;
+
+			if ( moves == 9 ) {
+				draws++;
+				$('#draws').text(draws);
+			}
+
+			if (board[x][y] == '' && !winState) {
+				if (player) {
+					board[x][y] = 'X';
+					player = false;
+				} else {
+					board[x][y] = 'O';
+					player = true;
+				}
+				$('#c' + x + y).text(board[x][y]);
+				checkWinState();
+				if ( moves == 1 || moves == 3 || moves == 5 || moves == 7 ) {
+					ai();
+				}
+			}
+
+		}
+
+		function checkWinState() {
+			for (var i = 0; i < lines.length; i++) {
+				line = lines[i].split(',');
+				checksum = '';
+				for (var n = 0; n < line.length; n++) {
+					checksum += board[line[n].substring(0, 1)][line[n].substring(1, 2)];
+				}
+
+				if (checksum == 'XXX') {
+					xwins++;
+					setWinState(line);
+					$('#xwins').text(xwins);
+					break;
+				}
+
+				if (checksum == 'OOO') {
+					owins++;
+					setWinState(line);
+					$('#owins').text(owins);
+					break;
+				}
+			}
+		}
+
+		function setWinState( cells ) {
+			winState = true;
+			$('#c' + cells[0]).addClass('win');
+			$('#c' + cells[1]).addClass('win');
+			$('#c' + cells[2]).addClass('win');
+		}
+
+		function ai() {
+
+			aiList = {};
+
+			for (var x = 0; x < 3; x++) {
+				for (var y = 0; y < 3; y++) {
+					aiList['l'+x+y] = 0;
+				}
+			}
+
+			for (var i = 0; i < lines.length; i++) {
+				line = lines[i].split(',');
+				aix = 0;
+				aio = 0;
+				for (var n = 0; n < line.length; n++) {
+					x = line[n].substring(0, 1);
+					y = line[n].substring(1, 2);
+					if ( board[x][y] == 'X' ) {
+						aix++;
+					}
+					if ( board[x][y] == 'O' ) {
+						aio++;
+					}
+				}
+				if ( aix + aio == 3 ) { // don't consider lines that are full.
+					for (var n = 0; n < line.length; n++) {
+						x = line[n].substring(0, 1);
+						y = line[n].substring(1, 2);
+						aiList['l'+x+y]--;
+					}
+				} else if( aio == 2 && aix == 0 ) { // if one cell is missing from row, claim a win.
+					for (var n = 0; n < line.length; n++) {
+						x = line[n].substring(0, 1);
+						y = line[n].substring(1, 2);
+						if ( board[x][y] == '' ) {
+							aiList['l'+x+y] = 9;
+						}
+					}
+				} else if( aix == 2 && aio == 0 ) { // if X is missing one cell, block, but only if we can't claim a win.
+					for (var n = 0; n < line.length; n++) {
+						x = line[n].substring(0, 1);
+						y = line[n].substring(1, 2);
+						if ( board[x][y] == '' ) {
+							aiList['l'+x+y] = 5;
+						}
+					}
+				} else if( aio == 1 && aix == 0 ) { // good line to bet on.
+					for (var n = 0; n < line.length; n++) {
+						x = line[n].substring(0, 1);
+						y = line[n].substring(1, 2);
+						if ( board[x][y] == '' ) {
+							aiList['l'+x+y]++;
+						}
+					}
+				} 
+			}
+
+			aiTempValue = 0;
+
+			aiSetX = 1;
+			aiSetY = 1;
+
+			$.each(aiList,function(index,value) {
+				x = index.substring(1, 2);
+				y = index.substring(2, 3);
+				if ( value > aiTempValue ) {
+					aiTempValue = value;
+					aiSetX = x;
+					aiSetY = y;
+				}
+				$('#c'+x+y).css({'background':'rgba(255,230,0,0.'+value+')'});
+			});
+			move( aiSetX, aiSetY );
+		}
+
+		$('td').click(function(e) {
+
+			cid = e.target.id;
+
+			x = cid.substring(1, 2);
+			y = cid.substring(2, 3);
+
+			move( x, y );
+		});
+
+		$('#ng').click(function() {
+			init();
+		});
+
+		console.log('End of JS.');
+	});
+</script>
+
+</head>
+
+<body>
+
+	<h1>Tic-Tac-Toe</h1>
+
+	<button id="ng">New Game</button>
+
+	<table>
+		<tr>
+			<td id="c00"></td>
+			<td id="c01"></td>
+			<td id="c02"></td>
+		</tr>
+		<tr>
+			<td id="c10"></td>
+			<td id="c11"></td>
+			<td id="c12"></td>
+		</tr>
+		<tr>
+			<td id="c20"></td>
+			<td id="c21"></td>
+			<td id="c22"></td>
+		</tr>
+	</table>
+
+	<p>Player X: <span id="xwins"></span></p>
+
+	<p>Player O: <span id="owins"></span></p>
+
+	<p>Draws: <span id="draws"></span></p>
+
+</body>
+</html>
